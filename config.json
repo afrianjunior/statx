@@ -1,0 +1,22 @@
+{
+  "targets": [
+    {
+      "url": "https://example.com",
+      "interval": 30000000000
+    },
+    {
+      "url": "https://google.com",
+      "interval": 60000000000
+    }
+  ],
+  "db_path": "data/tsdb",
+  "retention_period": 604800000000000,
+  "block_duration": 7200000000000,
+  "server_port": "8080",
+  "log_level": "info",
+  "max_blocks_to_read": 1000,
+  "check_timeout": 10000000000,
+  "retry_attempts": 3,
+  "retry_delay": 5000000000,
+  "max_samples_per_day": 86400
+}
