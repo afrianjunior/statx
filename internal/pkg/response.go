@@ -18,7 +18,7 @@ type BaseResponse struct {
 	Data    interface{} `json:"data"`
 }
 
-func jsonResponse(w http.ResponseWriter, d any, c int) {
+func JsonResponse(w http.ResponseWriter, d any, c int) {
 	dj, err := json.MarshalIndent(d, "", "  ")
 	if err != nil {
 		http.Error(w, "Error creating JSON response", http.StatusInternalServerError)
@@ -32,7 +32,7 @@ func jsonResponse(w http.ResponseWriter, d any, c int) {
 }
 
 // jsonResponseUsingBase write json body response using struct BaseResponse
-func jsonResponseUsingBase(w http.ResponseWriter, msg string, payload any, err error, c int) {
+func JsonResponseUsingBase(w http.ResponseWriter, msg string, payload any, err error, c int) {
 	resp := BaseResponse{
 		Message: msg,
 		Success: err == nil,
