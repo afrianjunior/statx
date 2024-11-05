@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 
 	"github.com/afrianjunior/statx/internal/pkg"
@@ -11,7 +12,8 @@ import (
 )
 
 type worker struct {
-	db         *tsdb.DB
+	tsdb       *tsdb.DB
+	db         *sql.DB
 	targets    []pkg.Target
 	httpClient *http.Client
 	logger     *zap.SugaredLogger
@@ -23,13 +25,15 @@ type Worker interface {
 }
 
 func NewWorker(
-	db *tsdb.DB,
+	tsdb *tsdb.DB,
+	db *sql.DB,
 	targets []pkg.Target,
 	httpClient *http.Client,
 	logger *zap.SugaredLogger,
 	config *pkg.Config,
 ) Worker {
 	return &worker{
+		tsdb,
 		db,
 		targets,
 		httpClient,
@@ -39,7 +43,7 @@ func NewWorker(
 }
 
 func (s *worker) Start(ctx context.Context) {
-	recorderService := recorder.NewRecorderService(s.db, s.config, s.httpClient, s.logger)
+	recorderService := recorder.NewRecorderService(s.tsdb, s.db, s.config, s.httpClient, s.logger)
 
 	recoderUptimeJob := recorder.NewUptimeJob(recorderService, s.targets, s.httpClient, s.logger)
 

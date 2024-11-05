@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/afrianjunior/statx/internal/exposer"
+	_ "github.com/glebarez/go-sqlite"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -21,29 +23,26 @@ type Rest interface {
 
 type rest struct {
 	httpClient *http.Client
-	db         *tsdb.DB
+	tsdb       *tsdb.DB
+	db         *sql.DB
 	logger     *zap.SugaredLogger
 }
 
 func NewRest(
 	httpClient *http.Client,
-	db *tsdb.DB,
+	tsdb *tsdb.DB,
+	db *sql.DB,
 	logger *zap.SugaredLogger,
 ) Rest {
 	return &rest{
 		httpClient: httpClient,
+		tsdb:       tsdb,
 		db:         db,
 		logger:     logger,
 	}
 }
 
 func (s *rest) Start(port string) {
-	// Start monitoring each target
-	// for _, target := range s.targets {
-	// 	go s.checkStatus(target)
-	// }
-
-	// Setup and start HTTP server
 	router := s.setupRouter()
 	s.logger.Infof("Starting server on port %s...", port)
 	if err := http.ListenAndServe(":"+port, router); err != nil {
@@ -53,7 +52,7 @@ func (s *rest) Start(port string) {
 
 func (s *rest) setupRouter() *chi.Mux {
 	r := chi.NewRouter()
-	exposerService := exposer.NewExposerService(s.db)
+	exposerService := exposer.NewExposerService(s.tsdb)
 
 	// Middleware
 	r.Use(middleware.Logger)

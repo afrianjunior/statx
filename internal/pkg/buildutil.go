@@ -4,7 +4,7 @@ import "time"
 
 type Config struct {
 	Targets          []Target      `json:"targets"`
-	DBPath           string        `json:"db_path"`
+	StoragePath      string        `json:"storage_path"`
 	RetentionPeriod  time.Duration `json:"retention_period"`
 	BlockDuration    time.Duration `json:"block_duration"`
 	ServerPort       string        `json:"server_port"`

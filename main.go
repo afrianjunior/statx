@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/afrianjunior/statx/cmd"
@@ -19,7 +19,8 @@ import (
 type App struct {
 	targets    []pkg.Target
 	httpClient *http.Client
-	db         *tsdb.DB
+	tsdb       *tsdb.DB
+	db         *sql.DB
 	logger     *zap.SugaredLogger
 	config     *pkg.Config
 }
@@ -30,7 +31,7 @@ func loadConfig(path string) (*pkg.Config, error) {
 			{URL: "https://example.com", Interval: 30 * time.Second},
 			{URL: "https://google.com", Interval: 60 * time.Second},
 		},
-		DBPath:           filepath.Join("data", "tsdb"),
+		StoragePath:      "data",
 		RetentionPeriod:  7 * 24 * time.Hour,
 		BlockDuration:    2 * time.Hour,
 		ServerPort:       "8080",
@@ -81,8 +82,15 @@ func NewApp(config *pkg.Config) (*App, error) {
 		return nil, err
 	}
 
-	if err := os.MkdirAll(config.DBPath, 0755); err != nil {
-		return nil, fmt.Errorf("error creating DB directory: %v", err)
+	tsdbPath := fmt.Sprintf("%s/%s", config.StoragePath, "/tsdb")
+	sqlitePath := fmt.Sprintf("%s/%s", config.StoragePath, "/sqlite")
+
+	if err := os.MkdirAll(tsdbPath, 0755); err != nil {
+		return nil, fmt.Errorf("error creating tsdb directory: %v", err)
+	}
+
+	if err := os.MkdirAll(sqlitePath, 0755); err != nil {
+		return nil, fmt.Errorf("error creating sqlite directory: %v", err)
 	}
 
 	opts := tsdb.DefaultOptions()
@@ -90,9 +98,14 @@ func NewApp(config *pkg.Config) (*App, error) {
 	opts.MaxBlockDuration = config.BlockDuration.Milliseconds()
 	opts.MaxBlockChunkSegmentSize = 256 * 1024 * 1024
 
-	db, err := tsdb.Open(config.DBPath, nil, nil, opts, nil)
+	tsdb, err := tsdb.Open(tsdbPath, nil, nil, opts, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error opening TSDB: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", fmt.Sprintf("%s/%s", sqlitePath, "/statx.db"))
+	if err != nil {
+		return nil, fmt.Errorf("error opening sqlite: %v", err)
 	}
 
 	return &App{
@@ -100,6 +113,7 @@ func NewApp(config *pkg.Config) (*App, error) {
 		httpClient: &http.Client{
 			Timeout: config.CheckTimeout,
 		},
+		tsdb:   tsdb,
 		db:     db,
 		logger: logger,
 		config: config,
@@ -107,6 +121,7 @@ func NewApp(config *pkg.Config) (*App, error) {
 }
 
 func main() {
+	ctx := context.Background()
 	config, err := loadConfig("config.json")
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
@@ -116,8 +131,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating monitor: %v", err)
 	}
+	defer app.db.Close()
 
 	worker := cmd.NewWorker(
+		app.tsdb,
 		app.db,
 		app.targets,
 		app.httpClient,
@@ -129,9 +146,12 @@ func main() {
 
 	rest := cmd.NewRest(
 		app.httpClient,
+		app.tsdb,
 		app.db,
 		app.logger,
 	)
+
+	app.db.Conn(ctx)
 
 	rest.Start(app.config.ServerPort)
 }

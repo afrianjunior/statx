@@ -2,6 +2,7 @@ package recorder
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,7 +14,8 @@ import (
 )
 
 type recorderService struct {
-	db         *tsdb.DB
+	tsdb       *tsdb.DB
+	db         *sql.DB
 	config     *pkg.Config
 	httpClient *http.Client
 	logger     *zap.SugaredLogger
@@ -25,12 +27,14 @@ type RecorderService interface {
 }
 
 func NewRecorderService(
-	db *tsdb.DB,
+	tsdb *tsdb.DB,
+	db *sql.DB,
 	config *pkg.Config,
 	httpClient *http.Client,
 	logger *zap.SugaredLogger,
 ) RecorderService {
 	return &recorderService{
+		tsdb,
 		db,
 		config,
 		httpClient,
@@ -38,8 +42,29 @@ func NewRecorderService(
 	}
 }
 
+func (s *recorderService) WriteGenericRecord(ctx context.Context, key string, value int) error {
+	appender := s.tsdb.Appender(ctx)
+	defer appender.Rollback()
+
+	labelSet := labels.Labels{
+		{Name: "__name__", Value: "value"},
+		{Name: "key", Value: key},
+	}
+
+	_, err := appender.Append(0, labelSet, time.Now().UnixNano()/int64(time.Millisecond), float64(value))
+	if err != nil {
+		return fmt.Errorf("error appending sample: %v", err)
+	}
+
+	if err := appender.Commit(); err != nil {
+		return fmt.Errorf("error committing sample: %v", err)
+	}
+
+	return nil
+}
+
 func (s *recorderService) WriteUpTimeRecord(ctx context.Context, url string, statusCode int, responseTime float64) error {
-	appender := s.db.Appender(ctx)
+	appender := s.tsdb.Appender(ctx)
 	defer appender.Rollback()
 
 	labelSet := labels.Labels{

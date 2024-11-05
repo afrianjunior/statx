@@ -9,7 +9,7 @@
       "interval": 60000000000
     }
   ],
-  "db_path": "data/tsdb",
+  "storage_path": "data",
   "retention_period": 604800000000000,
   "block_duration": 7200000000000,
   "server_port": "8080",

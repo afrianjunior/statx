@@ -12,7 +12,7 @@ import (
 )
 
 type exposerService struct {
-	db *tsdb.DB
+	tsdb *tsdb.DB
 }
 
 type ExposerService interface {
@@ -26,7 +26,7 @@ func NewExposerService(db *tsdb.DB) ExposerService {
 }
 
 func (s *exposerService) QueryUpTimeStatus(ctx context.Context, url string, timeRange pkg.TimeRange) ([]pkg.QueryResult, error) {
-	querier, err := s.db.Querier(
+	querier, err := s.tsdb.Querier(
 		timeRange.Start.UnixMilli(),
 		timeRange.End.UnixMilli(),
 	)
