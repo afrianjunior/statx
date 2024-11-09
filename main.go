@@ -14,6 +14,8 @@ import (
 	"github.com/afrianjunior/statx/internal/pkg"
 	"github.com/prometheus/prometheus/tsdb"
 	"go.uber.org/zap"
+
+	_ "github.com/glebarez/go-sqlite"
 )
 
 type App struct {

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
+	"github.com/afrianjunior/statx/internal/config_monitor"
 	"github.com/afrianjunior/statx/internal/exposer"
 	_ "github.com/glebarez/go-sqlite"
 	"github.com/go-chi/chi/v5"
@@ -52,6 +53,12 @@ func (s *rest) Start(port string) {
 
 func (s *rest) setupRouter() *chi.Mux {
 	r := chi.NewRouter()
+
+	// Repositories
+	configMonitorRepository := config_monitor.NewConfigMonitorRepository(s.db)
+
+	// Services
+	configMonitorService := config_monitor.NewConfigService(configMonitorRepository)
 	exposerService := exposer.NewExposerService(s.tsdb)
 
 	// Middleware
@@ -70,6 +77,8 @@ func (s *rest) setupRouter() *chi.Mux {
 	// API Routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/status", exposer.StatusHandler(exposerService))
+		r.Post("/configs", config_monitor.MutationHandler(configMonitorService))
+		r.Get("/configs", config_monitor.ListHandler(configMonitorService))
 	})
 
 	return r
